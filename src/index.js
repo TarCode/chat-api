@@ -1,7 +1,7 @@
 import express from 'express'
 import bodyParser from 'body-parser'
 import cookieParser from 'cookie-parser'
-import { FindMany, FindOrCreate } from './db-ops'
+import { FindMany, FindOrCreate, Insert, Update } from './db-ops'
 const ObjectID = require('mongodb').ObjectID
 import session from 'express-session'
 import ConnectMongo from 'connect-mongo'
@@ -42,8 +42,36 @@ app.get('/', (req, res) => {
   res.send('Hello Logged in person')
 })
 
+app.post('/login', (req, res) => {
+  FindMany('users', req.body)
+  .then(result => {
+    console.log('login result', result);
+    if(result && result[0] && result[0].password === req.body.password) {
+      console.log('successfully authorized');
+      res.send({user: req.body.email})
+    } else {
+      console.log('unauthorized');
+    }
+  })
+})
+
 app.post('/set-password', (req, res) => {
   console.log('Password received', req.body);
+  FindMany('users', { email: req.body.email })
+  .then(result => {
+    console.log('result from finding email for pass', result);
+    if(result.length === 0) {
+      Insert('users', req.body)
+      .then(insResult => {
+        console.log('result from insert user', insResult);
+      })
+    } else {
+      Update('users', { email: req.body.email }, { password: req.body.password })
+      .then(updatePassResult => {
+        console.log('updatePassResult', updatePassResult);
+      })
+    }
+  })
 })
 
 app.get('/users', (req, res) => {
