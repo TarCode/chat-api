@@ -10,8 +10,17 @@ import cors from 'cors'
 const MongoStore = ConnectMongo(session)
 import xml2js from 'xml2js'
 import nodemailer from 'nodemailer'
+import multer from 'multer'
+import cloudinary from 'cloudinary'
+const upload = multer({ dest: 'uploads/' })
+cloudinary.config({
+  cloud_name: 'codingtest',
+  api_key: '341898513945715',
+  api_secret: 'IRXRSWKMeA_gxBoN15O9rMw1omg'
+})
 const parseString = xml2js.parseString
 // create an instance of an express server/app
+
 const app = express()
 app.use( cookieParser());
 app.use( bodyParser.json());
@@ -74,28 +83,65 @@ app.post('/set-password', (req, res) => {
   })
 })
 
+app.post('/groups', (req, res) => {
+  const { groupName, email } = req.body
+  console.log('Group data received', groupName, email);
+  if(groupName && groupName.length > 0 && email && email.length > 0) {
+    Insert('groups', req.body)
+    .then(result => {
+      res.send(result)
+    })
+  } else {
+    res.send({ err: "Please enter a valid name" })
+  }
+
+})
+
+
+app.post('/upload', upload.single('file'), (req, res) => {
+  console.log('upload file', req.file.path);
+  console.log('group name', req.body);
+  const groupName = req.body.name
+  cloudinary.uploader.upload(req.file.path, result => {
+    console.log(result)
+    Update('groups', { groupName }, { img_url: result.url})
+    .then(updateRes => {
+      console.log('update res', updateRes);
+      res.send(updateRes)
+    })
+    .catch(err => {
+      res.send(err)
+    })
+  });
+})
+
+
+
 app.get('/users', (req, res) => {
   request
   .get('https://testapi.react.technology/users/?email=tarcode33@gmail.com')
   .end((err, result) => {
     res.send(result)
-  })
 
-  // FindMany('shops')
-  // .then((results) => (
-  //   res.send(results)
-  // ))
+  })
 })
 
-app.get('/groups/:groupId', (req, res) => {
+app.get('/groups', (req, res) => {
+  FindMany('groups')
+  .then((results) => (
+    res.send(results)
+  ))
+})
+
+app.get('/group/:groupId', (req, res) => {
   FindMany('groups', { _id: ObjectID(req.params.groupId)})
   .then((results) => (
     res.send(results)
   ))
 })
 
-app.get('/items/:catId', (req, res) => {
-  FindMany('menuItems', { menuCategoryId: ObjectID(req.params.catId)})
+app.get('/messages/:groupId', (req, res) => {
+  FindMany('messages', { groupId: ObjectID(req.params.groupId)})
   .then((results) => (
     res.send(results)
   ))
@@ -126,12 +172,12 @@ app.listen(3000, () => {
               html: '<b><a href="http://localhost:8080/set-password?email=' + u.email + '">Set Password</a></b> to chat' // html body
           };
           console.log('found you!!!!!!')
-          transporter.sendMail(mailOptions, (error, info) => {
-              if (error) {
-                  return console.log(error);
-              }
-              console.log('Message %s sent: %s', info.messageId, info.response);
-          })
+          // transporter.sendMail(mailOptions, (error, info) => {
+          //     if (error) {
+          //         return console.log(error);
+          //     }
+          //     console.log('Message %s sent: %s', info.messageId, info.response);
+          // })
         }
       })
     })
