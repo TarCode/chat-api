@@ -64,6 +64,38 @@ app.post('/login', (req, res) => {
   })
 })
 
+app.get('/messages/:groupId', (req, res) => {
+  FindMany('messages', { groupId: req.params.groupId})
+  .then((results) => (
+    res.send(results)
+  ))
+})
+
+app.post('/message', (req, res) => {
+  Insert('messages', req.body)
+  .then(result => {
+    console.log('result from add group', result.ops[0]._id);
+    const groupId = result.ops[0]._id
+    res.send(result)
+  })
+})
+
+app.post('/check-sentiment', (req, res) => {
+  console.log('req body sentiment', req.body);
+  request
+  .post('http://sentiment.vivekn.com/api/text/')
+  .set('Accept', 'application/json')
+  .send("txt="+ req.body.txt)
+  .end((err, result) => {
+    if(err) {
+      console.log('sentiment err', err);
+      res.send(err)
+    } else {
+      res.send(result)
+    }
+  })
+})
+
 app.post('/set-password', (req, res) => {
   console.log('Password received', req.body);
   FindMany('users', { email: req.body.email })
@@ -89,7 +121,16 @@ app.post('/groups', (req, res) => {
   if(groupName && groupName.length > 0 && email && email.length > 0) {
     Insert('groups', req.body)
     .then(result => {
-      res.send(result)
+      console.log('result from add group', result.ops[0]._id);
+      const groupId = result.ops[0]._id
+      Insert('members', {
+        email,
+        groupId,
+        isAdmin: true
+      })
+      .then(resp => {
+        res.send({groupId})
+      })
     })
   } else {
     res.send({ err: "Please enter a valid name" })
@@ -140,8 +181,8 @@ app.get('/group/:groupId', (req, res) => {
   ))
 })
 
-app.get('/messages/:groupId', (req, res) => {
-  FindMany('messages', { groupId: ObjectID(req.params.groupId)})
+app.get('/members/:groupId', (req, res) => {
+  FindMany('members', { groupId: ObjectID(req.params.groupId)})
   .then((results) => (
     res.send(results)
   ))
