@@ -145,6 +145,23 @@ app.post('/set-password', (req, res) => {
   })
 })
 
+
+
+app.post('/groups/update', (req, res) => {
+  const groupData = req.body
+  const id = req.body._id
+  delete groupData._id
+  console.log('loggin group data',id,  groupData);
+  Update('groups', { _id: ObjectID(id)}, groupData)
+  .then(result => {
+    console.log('result from update group', result);
+    res.send(result)
+  })
+  .catch(err => {
+    res.send(err)
+  })
+})
+
 app.post('/groups', (req, res) => {
   const { groupName, email, firstname, surname } = req.body
   const members = [{
@@ -163,21 +180,6 @@ app.post('/groups', (req, res) => {
   } else {
     res.send({ err: "Please enter a valid name" })
   }
-})
-
-app.post('/groups/update', (req, res) => {
-  const groupData = req.body
-  const id = req.body._id
-  delete groupData._id
-  console.log('loggin group data',id,  groupData);
-  Update('groups', { _id: ObjectID(id)}, groupData)
-  .then(result => {
-    console.log('result from update group', result);
-    res.send(result)
-  })
-  .catch(err => {
-    res.send(err)
-  })
 })
 
 app.post('/upload', upload.single('file'), (req, res) => {
@@ -207,11 +209,19 @@ app.get('/users', (req, res) => {
   })
 })
 
-app.get('/groups', (req, res) => {
+app.get('/groups/:email', (req, res) => {
   FindMany('groups')
-  .then((results) => (
-    res.send(results)
-  ))
+  .then((results) => {
+    const groups = []
+    results && results.map(r => {
+      r.members.map(m => {
+        if(m.email === req.params.email) {
+          groups.push(r)
+        }
+      })
+    })
+    res.send(groups)
+  })
   .catch(err => {
     res.send(err)
   })
