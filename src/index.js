@@ -166,10 +166,13 @@ app.post('/groups', (req, res) => {
 })
 
 app.post('/groups/update', (req, res) => {
-  const { groupId, groupName, members } = req.body
-  Update('groups', { _id: ObjectID(groupId)}, groupName, members)
+  const groupData = req.body
+  const id = req.body._id
+  delete groupData._id
+  console.log('loggin group data',id,  groupData);
+  Update('groups', { _id: ObjectID(id)}, groupData)
   .then(result => {
-    console.log('result from update group');
+    console.log('result from update group', result);
     res.send(result)
   })
   .catch(err => {
@@ -232,7 +235,7 @@ server.listen(3000, () => {
     var userdata = result.text
     var users = userdata
     parseString(users, (err, parsed) => {
-      const userJson = parsed.Users.User.map(i => ({
+      const userJson = parsed && parsed.Users && parsed.Users.User.map(i => ({
         firstname: i.Name[0],
         surname: i.Surname[0],
         email: i.Email[0]
