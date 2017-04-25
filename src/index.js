@@ -14,6 +14,8 @@ import cloudinary from 'cloudinary'
 import multer from 'multer'
 const upload = multer({ dest: 'uploads/' })
 
+const MY_EMAIL = "yourEmailHere"
+
 const parseString = xml2js.parseString
 
 const app = express()
@@ -200,7 +202,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
 app.get('/users', (req, res) => {
   request
-  .get('https://testapi.react.technology/users/?email=tarcode33@gmail.com')
+  .get('https://testapi.react.technology/users/?email=' + MY_EMAIL)
   .end((err, result) => {
     if(err) {
       res.send(err)
@@ -240,7 +242,7 @@ app.get('/group/:groupId', (req, res) => {
 // Serve the app/server on port 3000
 server.listen(3000, () => {
   request
-  .get('https://testapi.react.technology/users/?email=tarcode33@gmail.com')
+  .get('https://testapi.react.technology/users/?email=' + MY_EMAIL)
   .end((err, result) => {
     var userdata = result.text
     var users = userdata
@@ -252,7 +254,7 @@ server.listen(3000, () => {
       }))
       // console.log('parsed xml', userJson);
       userJson && userJson.map(u => {
-        if(u.email === 'tarcode33@gmail.com') {
+        if(u.email === MY_EMAIL) {
           FindMany('users', { email: u.email })
           .then(result => {
             if(result && result[0].email) {
@@ -276,12 +278,12 @@ server.listen(3000, () => {
               html: '<b><a href="http://localhost:8080/set-password?email=' + u.email + '">Set Password</a></b> to chat' // html body
           };
           console.log('found you!!!!!!')
-          // transporter.sendMail(mailOptions, (error, info) => {
-          //     if (error) {
-          //         return console.log(error);
-          //     }
-          //     console.log('Message %s sent: %s', info.messageId, info.response);
-          // })
+          transporter.sendMail(mailOptions, (error, info) => {
+              if (error) {
+                  return console.log(error);
+              }
+              console.log('Message %s sent: %s', info.messageId, info.response);
+          })
         }
       })
     })
