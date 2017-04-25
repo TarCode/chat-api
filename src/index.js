@@ -11,6 +11,8 @@ const MongoStore = ConnectMongo(session)
 import xml2js from 'xml2js'
 import nodemailer from 'nodemailer'
 import cloudinary from 'cloudinary'
+import multer from 'multer'
+const upload = multer({ dest: 'uploads/' })
 
 const parseString = xml2js.parseString
 
@@ -67,7 +69,9 @@ app.post('/login', (req, res) => {
     console.log('login result', result);
     if(result && result[0] && result[0].password === req.body.password) {
       console.log('successfully authorized');
-      res.send({user: req.body.email})
+      let dataToSend = result[0]
+      delete dataToSend.password
+      res.send(dataToSend)
     } else {
       console.log('unauthorized');
       res.send({ err: 'unauthorized' })
@@ -131,6 +135,7 @@ app.post('/set-password', (req, res) => {
     } else {
       Update('users', { email: req.body.email }, { password: req.body.password })
       .then(updatePassResult => {
+        delete updatePassResult.password;
         res.send(updatePassResult)
       })
       .catch(err => {
@@ -141,27 +146,35 @@ app.post('/set-password', (req, res) => {
 })
 
 app.post('/groups', (req, res) => {
-  const { groupName, email } = req.body
+  const { groupName, email, firstname, surname } = req.body
+  const members = [{
+    email,
+    firstname,
+    surname,
+    isAdmin: true
+  }]
   if(groupName && groupName.length > 0 && email && email.length > 0) {
-    Insert('groups', req.body)
+    Insert('groups', { groupName, members: members })
     .then(result => {
       console.log('result from add group', result.ops[0]._id);
       const groupId = result.ops[0]._id
-      Insert('members', {
-        email,
-        groupId,
-        isAdmin: true
-      })
-      .then(resp => {
-        res.send({groupId})
-      })
-      .catch(err => {
-        res.send(err)
-      })
+      res.send({groupId})
     })
   } else {
     res.send({ err: "Please enter a valid name" })
   }
+})
+
+app.post('/groups/update', (req, res) => {
+  const { groupId, groupName, members } = req.body
+  Update('groups', { _id: ObjectID(groupId)}, groupName, members)
+  .then(result => {
+    console.log('result from update group');
+    res.send(result)
+  })
+  .catch(err => {
+    res.send(err)
+  })
 })
 
 app.post('/upload', upload.single('file'), (req, res) => {
@@ -211,15 +224,6 @@ app.get('/group/:groupId', (req, res) => {
   })
 })
 
-app.get('/members/:groupId', (req, res) => {
-  FindMany('members', { groupId: ObjectID(req.params.groupId)})
-  .then((results) => (
-    res.send(results)
-  ))
-  .catch(err => {
-    res.send(err)
-  })
-})
 // Serve the app/server on port 3000
 server.listen(3000, () => {
   request
@@ -236,6 +240,21 @@ server.listen(3000, () => {
       // console.log('parsed xml', userJson);
       userJson && userJson.map(u => {
         if(u.email === 'tarcode33@gmail.com') {
+          FindMany('users', { email: u.email })
+          .then(result => {
+            if(result && result[0].email) {
+              console.log('successfully found');
+            } else {
+              Insert('users', u)
+              .then(insResult => {
+                console.log('result from insert user', insResult);
+              })
+              .catch(err => {
+                console.log('error ', err);
+              })
+            }
+          })
+
           let mailOptions = {
               from: '"Test Foo 👻" <testapi@react.technology>', // sender address
               to: u.email, // list of receivers
