@@ -10,14 +10,8 @@ import cors from 'cors'
 const MongoStore = ConnectMongo(session)
 import xml2js from 'xml2js'
 import nodemailer from 'nodemailer'
-import multer from 'multer'
 import cloudinary from 'cloudinary'
-const upload = multer({ dest: 'uploads/' })
-cloudinary.config({
-  cloud_name: 'codingtest',
-  api_key: '341898513945715',
-  api_secret: 'IRXRSWKMeA_gxBoN15O9rMw1omg'
-})
+
 const parseString = xml2js.parseString
 
 const app = express()
@@ -25,14 +19,6 @@ const app = express()
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
 
-
-app.use( cookieParser());
-app.use( bodyParser.json());
-app.use( bodyParser.urlencoded({
-	extended: true
-}));
-
-// create reusable transporter object using the default SMTP transport
 let transporter = nodemailer.createTransport({
     host: 'smtp.mailgun.org',
     port: 587,
@@ -40,15 +26,19 @@ let transporter = nodemailer.createTransport({
         user: 'testapi@react.technology',
         pass: 'ccCrkkfDmJVjBWLQ'
     }
-});
+})
 
-io.of('/messages')
-.on('connection', (socket) => {
-   socket.on('send', () => {
-     console.log('message received from client');
-     socket.broadcast.emit('receive')
-   })
- })
+cloudinary.config({
+  cloud_name: 'codingtest',
+  api_key: '341898513945715',
+  api_secret: 'IRXRSWKMeA_gxBoN15O9rMw1omg'
+})
+
+app.use( cookieParser());
+app.use( bodyParser.json());
+app.use( bodyParser.urlencoded({
+	extended: true
+}))
 
 app.use(cors({
     origin: (origin, cb) => {
@@ -57,6 +47,15 @@ app.use(cors({
     // credentials: true,
     // allowedHeaders: [ 'Content-Type', 'Authorization' ]
   }))
+
+
+io.of('/messages')
+.on('connection', (socket) => {
+   socket.on('send', () => {
+     console.log('message received from client');
+     socket.broadcast.emit('receive')
+   })
+ })
 
 app.get('/', (req, res) => {
   res.send('Hello Logged in person')
@@ -71,7 +70,11 @@ app.post('/login', (req, res) => {
       res.send({user: req.body.email})
     } else {
       console.log('unauthorized');
+      res.send({ err: 'unauthorized' })
     }
+  })
+  .catch(err => {
+    res.send(err)
   })
 })
 
@@ -80,6 +83,9 @@ app.get('/messages/:groupId', (req, res) => {
   .then((results) => (
     res.send(results)
   ))
+  .catch(err => {
+    res.send(err)
+  })
 })
 
 app.post('/message', (req, res) => {
@@ -88,6 +94,9 @@ app.post('/message', (req, res) => {
     console.log('result from add group', result.ops[0]._id);
     const groupId = result.ops[0]._id
     res.send(result)
+  })
+  .catch(err => {
+    res.send(err)
   })
 })
 
@@ -108,19 +117,24 @@ app.post('/check-sentiment', (req, res) => {
 })
 
 app.post('/set-password', (req, res) => {
-  console.log('Password received', req.body);
   FindMany('users', { email: req.body.email })
   .then(result => {
-    console.log('result from finding email for pass', result);
     if(result.length === 0) {
       Insert('users', req.body)
       .then(insResult => {
         console.log('result from insert user', insResult);
+        res.send(insResult)
+      })
+      .catch(err => {
+        res.send(err)
       })
     } else {
       Update('users', { email: req.body.email }, { password: req.body.password })
       .then(updatePassResult => {
-        console.log('updatePassResult', updatePassResult);
+        res.send(updatePassResult)
+      })
+      .catch(err => {
+        res.send(err)
       })
     }
   })
@@ -128,7 +142,6 @@ app.post('/set-password', (req, res) => {
 
 app.post('/groups', (req, res) => {
   const { groupName, email } = req.body
-  console.log('Group data received', groupName, email);
   if(groupName && groupName.length > 0 && email && email.length > 0) {
     Insert('groups', req.body)
     .then(result => {
@@ -142,12 +155,14 @@ app.post('/groups', (req, res) => {
       .then(resp => {
         res.send({groupId})
       })
+      .catch(err => {
+        res.send(err)
+      })
     })
   } else {
     res.send({ err: "Please enter a valid name" })
   }
 })
-
 
 app.post('/upload', upload.single('file'), (req, res) => {
   console.log('upload file', req.file.path);
@@ -157,23 +172,22 @@ app.post('/upload', upload.single('file'), (req, res) => {
     console.log(result)
     Update('groups', { groupName }, { img_url: result.url})
     .then(updateRes => {
-      console.log('update res', updateRes);
       res.send(updateRes)
     })
     .catch(err => {
       res.send(err)
     })
-  });
+  })
 })
-
-
 
 app.get('/users', (req, res) => {
   request
   .get('https://testapi.react.technology/users/?email=tarcode33@gmail.com')
   .end((err, result) => {
+    if(err) {
+      res.send(err)
+    }
     res.send(result)
-
   })
 })
 
@@ -182,6 +196,9 @@ app.get('/groups', (req, res) => {
   .then((results) => (
     res.send(results)
   ))
+  .catch(err => {
+    res.send(err)
+  })
 })
 
 app.get('/group/:groupId', (req, res) => {
@@ -189,6 +206,9 @@ app.get('/group/:groupId', (req, res) => {
   .then((results) => (
     res.send(results)
   ))
+  .catch(err => {
+    res.send(err)
+  })
 })
 
 app.get('/members/:groupId', (req, res) => {
@@ -196,8 +216,10 @@ app.get('/members/:groupId', (req, res) => {
   .then((results) => (
     res.send(results)
   ))
+  .catch(err => {
+    res.send(err)
+  })
 })
-
 // Serve the app/server on port 3000
 server.listen(3000, () => {
   request
@@ -212,7 +234,6 @@ server.listen(3000, () => {
         email: i.Email[0]
       }))
       // console.log('parsed xml', userJson);
-
       userJson && userJson.map(u => {
         if(u.email === 'tarcode33@gmail.com') {
           let mailOptions = {
@@ -232,7 +253,6 @@ server.listen(3000, () => {
         }
       })
     })
-
   })
   console.log('App listening on port 3000')
 })
