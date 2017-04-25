@@ -19,9 +19,13 @@ cloudinary.config({
   api_secret: 'IRXRSWKMeA_gxBoN15O9rMw1omg'
 })
 const parseString = xml2js.parseString
-// create an instance of an express server/app
 
 const app = express()
+
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
+
+
 app.use( cookieParser());
 app.use( bodyParser.json());
 app.use( bodyParser.urlencoded({
@@ -38,6 +42,13 @@ let transporter = nodemailer.createTransport({
     }
 });
 
+io.of('/messages')
+.on('connection', (socket) => {
+   socket.on('send', () => {
+     console.log('message received from client');
+     socket.broadcast.emit('receive')
+   })
+ })
 
 app.use(cors({
     origin: (origin, cb) => {
@@ -135,7 +146,6 @@ app.post('/groups', (req, res) => {
   } else {
     res.send({ err: "Please enter a valid name" })
   }
-
 })
 
 
@@ -189,7 +199,7 @@ app.get('/members/:groupId', (req, res) => {
 })
 
 // Serve the app/server on port 3000
-app.listen(3000, () => {
+server.listen(3000, () => {
   request
   .get('https://testapi.react.technology/users/?email=tarcode33@gmail.com')
   .end((err, result) => {
