@@ -14,7 +14,7 @@ import cloudinary from 'cloudinary'
 import multer from 'multer'
 const upload = multer({ dest: 'uploads/' })
 
-const MY_EMAIL = "yourEmailHere"
+const MY_EMAILS = "your@mail.com,your@othermail.co"
 
 const parseString = xml2js.parseString
 
@@ -60,10 +60,6 @@ io.of('/messages')
      socket.broadcast.emit('receive')
    })
  })
-
-app.get('/', (req, res) => {
-  res.send('Hello Logged in person')
-})
 
 app.post('/login', (req, res) => {
   FindMany('users', req.body)
@@ -147,8 +143,6 @@ app.post('/set-password', (req, res) => {
   })
 })
 
-
-
 app.post('/groups/update', (req, res) => {
   const groupData = req.body
   const id = req.body._id
@@ -202,7 +196,7 @@ app.post('/upload', upload.single('file'), (req, res) => {
 
 app.get('/users', (req, res) => {
   request
-  .get('https://testapi.react.technology/users/?email=' + MY_EMAIL)
+  .get('https://testapi.react.technology/users/?email=' + MY_EMAILS)
   .end((err, result) => {
     if(err) {
       res.send(err)
@@ -242,51 +236,59 @@ app.get('/group/:groupId', (req, res) => {
 // Serve the app/server on port 3000
 server.listen(3000, () => {
   request
-  .get('https://testapi.react.technology/users/?email=' + MY_EMAIL)
+  .get('https://testapi.react.technology/users/?email=' + MY_EMAILS)
   .end((err, result) => {
-    var userdata = result.text
-    var users = userdata
-    parseString(users, (err, parsed) => {
-      const userJson = parsed && parsed.Users && parsed.Users.User.map(i => ({
-        firstname: i.Name[0],
-        surname: i.Surname[0],
-        email: i.Email[0]
-      }))
-      // console.log('parsed xml', userJson);
-      userJson && userJson.map(u => {
-        if(u.email === MY_EMAIL) {
-          FindMany('users', { email: u.email })
-          .then(result => {
-            if(result && result[0].email) {
-              console.log('successfully found');
-            } else {
-              Insert('users', u)
-              .then(insResult => {
-                console.log('result from insert user', insResult);
+    if(err) {
+      console.log(err);
+    } else {
+      var userdata = result.text
+      var users = userdata
+      parseString(users, (err, parsed) => {
+        const userJson = parsed && parsed.Users && parsed.Users.User.map(i => ({
+          firstname: i.Name[0],
+          surname: i.Surname[0],
+          email: i.Email[0]
+        }))
+        // console.log('parsed xml', userJson);
+        const mailList = MY_EMAILS.split(',')
+        console.log('mailList', mailList);
+        mailList.map(m => {
+          userJson && userJson.map(u => {
+            if(u.email === m) {
+              FindMany('users', { email: u.email })
+              .then(result => {
+                if(result && result[0].email) {
+                  console.log('successfully found');
+                } else {
+                  Insert('users', u)
+                  .then(insResult => {
+                    console.log('result from insert user', insResult);
+                  })
+                  .catch(err => {
+                    console.log('error ', err);
+                  })
+                }
               })
-              .catch(err => {
-                console.log('error ', err);
+
+              let mailOptions = {
+                  from: '"Test Foo 👻" <testapi@react.technology>', // sender address
+                  to: u.email, // list of receivers
+                  subject: 'Set Password For Chat', // Subject line
+                  text: 'Set Password', // plain text body
+                  html: '<b><a href="http://localhost:8080/set-password?email=' + u.email + '">Set Password</a></b> to chat' // html body
+              };
+              console.log('found you!!!!!!')
+              transporter.sendMail(mailOptions, (error, info) => {
+                  if (error) {
+                      return console.log(error);
+                  }
+                  console.log('Message %s sent: %s', info.messageId, info.response);
               })
             }
           })
-
-          let mailOptions = {
-              from: '"Test Foo 👻" <testapi@react.technology>', // sender address
-              to: u.email, // list of receivers
-              subject: 'Set Password For Chat', // Subject line
-              text: 'Set Password', // plain text body
-              html: '<b><a href="http://localhost:8080/set-password?email=' + u.email + '">Set Password</a></b> to chat' // html body
-          };
-          console.log('found you!!!!!!')
-          transporter.sendMail(mailOptions, (error, info) => {
-              if (error) {
-                  return console.log(error);
-              }
-              console.log('Message %s sent: %s', info.messageId, info.response);
-          })
-        }
+        })
       })
-    })
+    }
   })
   console.log('App listening on port 3000')
 })
